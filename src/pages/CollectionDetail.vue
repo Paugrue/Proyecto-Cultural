@@ -16,8 +16,8 @@
     <h2 class="text-h5 font-weight-bold mb-6">Objetos en esta colección</h2>
     
     <v-row v-if="loadingRecords">
-      <v-col v-for="i in 4" :key="i" cols="12" sm="6" md="3">
-        <v-skeleton-loader type="card" />
+      <v-col v-for="i in 8" :key="i" cols="12" sm="6" md="4" lg="3">
+        <v-skeleton-loader type="image, article" />
       </v-col>
     </v-row>
 
@@ -37,7 +37,7 @@
         >
           <v-img
             :src="record.imageDisplay"
-            :alt="record.title"
+            :alt="record.displayTitle"
             height="220"
             cover
             class="rounded-lg bg-grey-lighten-2 mb-3"
@@ -50,7 +50,7 @@
           </v-img>
           
           <v-card-title class="pa-0 text-body-1 font-weight-bold line-clamp-2" style="line-height: 1.3;">
-            {{ record.title }}
+            {{ record.displayTitle }}
           </v-card-title>
         </v-card>
       </v-col>
@@ -75,9 +75,9 @@
             <v-card-actions v-if="media.attachment">
               <v-btn 
                 block 
-                variant="light" 
+                variant="flat" 
                 color="primary"
-                :href="API_BASE + media.attachment.url" 
+                :href="API_BASE + (media.attachment.url?.startsWith('/') ? '' : '/') + media.attachment.url" 
                 target="_blank"
                 prepend-icon="mdi-download"
               >
@@ -107,51 +107,69 @@ const collectionMedia = ref([])
 const loadingRecords = ref(true)
 
 /**
- * Normalización
+ * Función auxiliar para limpiar metadatos (reutilizada de RecordList)
+ */
+function getCleanText(field) {
+  if (!field) return '';
+  if (typeof field === 'object') {
+    const firstKey = Object.keys(field)[0];
+    const content = field[firstKey] || field;
+    return content.value || content['@value'] || content[0]?.value || (typeof content === 'string' ? content : '');
+  }
+  return field;
+}
+
+/**
+ * Normalización mejorada
  */
 function normalizeItem(r) {
-  // Prioridad a preview 
   let img = r.preview || r.thumbnail || r.image || '/placeholder.png';
   if (img !== '/placeholder.png' && !img.startsWith('http')) {
     img = `${API_BASE}${img.startsWith('/') ? '' : '/'}${img}`;
   }
 
+  // Usar la misma lógica de títulos que en la lista principal
+  const titleField = r.metadata_fields?.['dcterms:title'] || r.title || r.name;
+  const displayTitle = getCleanText(titleField);
+
   return {
     ...r,
-    id: r.id,
-    title: r.title || 'Sin título',
+    displayTitle: displayTitle || 'Sin título',
     imageDisplay: img
   }
 }
 
 onMounted(async () => {
   try {
-    // Datos de la colección principal
-    const { data: collData } = await api.getCollection(collectionId, {
+    // 1. Datos de la colección principal
+    const collResponse = await api.getCollection(collectionId, {
       with_labels: 1,
       fields: "id,title,description,children,thumbnail,preview"
     })
-    collection.value = collData || { title: 'Sin título', description: '' }
+    collection.value = collResponse.data || { title: 'Sin título', description: '' }
 
-    // Carga de Registros Hijos desde la API
-    const { data: recordsData } = await api.getRecords({
+    // 2. Carga de Registros que pertenecen a esta colección
+    // IMPORTANTE: Enviamos el array de filtros directamente, no como String JSON
+    const recordsResponse = await api.getRecords({
       with_labels: 1,
       fields: "id,title,thumbnail,preview,metadata_fields",
-      filters: JSON.stringify([{ field: "collections", operator: "in", value: [collectionId] }]),
-      limit: 50
+      filters: [{ field: "collections", operator: "in", value: [collectionId] }],
+      limit: 100
     })
     
-    const apiRecords = recordsData?.data || recordsData?.items || []
+    const apiRecords = recordsResponse.data?.data || recordsResponse.data?.items || []
     childRecords.value = apiRecords.map(normalizeItem)
     loadingRecords.value = false
 
-    // Carga de Media 
+    // 3. Carga de Media (Si existen sub-colecciones o hijos media)
     if (collection.value.children && collection.value.children.length) {
       const mediaPromises = collection.value.children.map(c =>
         api.getCollection(c.id, { with_labels: 1, fields: "id,thumbnail,preview,attachment" })
       )
       const mediaResults = await Promise.all(mediaPromises)
-      collectionMedia.value = mediaResults.map(r => normalizeItem(r.data))
+      collectionMedia.value = mediaResults
+        .filter(r => r.data)
+        .map(r => normalizeItem(r.data))
     }
   } catch (e) {
     console.error("Error cargando la colección:", e)
@@ -164,11 +182,11 @@ onMounted(async () => {
 .record-card {
   cursor: pointer;
   background: transparent !important;
+  transition: all 0.3s ease;
 }
 
-.record-card:hover .v-img {
+.record-card:hover {
   transform: translateY(-5px);
-  transition: transform 0.3s ease;
 }
 
 .line-clamp-2 {
@@ -178,7 +196,7 @@ onMounted(async () => {
   overflow: hidden;
 }
 
-.v-img {
-  transition: transform 0.3s ease;
+.rounded-lg {
+  border-radius: 12px !important;
 }
 </style>

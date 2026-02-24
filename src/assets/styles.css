@@ -116,18 +116,4 @@ a:hover {
   border-color: rgba(0,0,0,0.6);
 }
 
-/* Quita líneas finas que Vuetify añade en algunos contenedores */
-.v-btn,
-.v-alert,
-.v-card-actions,
-.v-row,
-.v-col {
-  border-bottom: none !important;
-  box-shadow: none !important;
-}
-
-/* También quita bordes/lineas heredadas de layout */
-.v-row > * {
-  border-bottom: none !important;
-}
 

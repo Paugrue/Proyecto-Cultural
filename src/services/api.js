@@ -1,8 +1,11 @@
 // src/services/api.js
 import axios from 'axios'
 
+
+// Antes: baseURL: 'https://arcadium.cluster24.libnamic.eu/api/glam'
+// Ahora:
 const apiClient = axios.create({
-  baseURL: 'https://arcadium.cluster24.libnamic.eu/api/glam',
+  baseURL: '/api-proxy/api/glam', // Ahora usamos el túnel que creamos en el proxy
   timeout: 10000,
   headers: { 'Content-Type': 'application/json' },
 })

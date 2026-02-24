@@ -6,7 +6,6 @@ import RecordDetail from '@/pages/RecordDetail.vue'
 import CollectionList from '@/pages/CollectionList.vue'
 import CollectionDetail from '@/pages/CollectionDetail.vue'
 import Pages from '@/pages/Pages.vue'
-import MediaList from '@/pages/MediaList.vue'
 
 const routes = [
   { path: '/', redirect: '/inicio' },
@@ -16,7 +15,6 @@ const routes = [
   { path: '/collection', name: 'CollectionList', component: CollectionList },
   { path: '/collection/:id', name: 'CollectionDetail', component: CollectionDetail, props: true },
   { path: '/pages', name: 'Pages', component: Pages },
-  { path: '/media', name: 'Media', component: MediaList },
 ]
 
 const router = createRouter({

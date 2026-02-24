@@ -1,160 +1,166 @@
-<!-- src/pages/RecordList.vue -->
 <template>
   <PageLayout>
-    <v-row>
-      <v-col cols="12" v-if="loading">
-        <v-skeleton-loader type="image, text" class="mb-4" />
-        <v-skeleton-loader type="image, text" class="mb-4" />
-        <v-skeleton-loader type="image, text" class="mb-4" />
+    <v-row v-if="loading">
+      <v-col v-for="i in 8" :key="i" cols="12" sm="6" md="4" lg="3">
+        <v-skeleton-loader type="image, article" />
       </v-col>
+    </v-row>
 
-      <v-col cols="12" v-else-if="!records.length">
-        <v-alert type="info" variant="tonal" class="d-flex align-center ga-3">
-          <span>No hay registros para los filtros aplicados.</span>
-          <v-spacer />
-          <RouterLink :to="{ path: '/record', query: { limit: 50 } }">
-            <v-btn variant="text">Limpiar filtros</v-btn>
-          </RouterLink>
-        </v-alert>
-      </v-col>
+    <v-row v-else>
+      <v-col v-for="record in records" :key="record.id" cols="12" sm="6" md="4" lg="3">
+        <v-card 
+          flat 
+          class="record-card" 
+          @click="$router.push(`/${currentScope === 'collections' ? 'collection' : 'record'}/${record.id}`)"
+        >
+          <v-img 
+            :src="record.imageDisplay" 
+            height="250" 
+            cover 
+            class="rounded-lg bg-grey-lighten-2 mb-3"
+          >
+            <template v-slot:placeholder>
+              <v-row class="fill-height ma-0" align="center" justify="center">
+                <v-progress-circular indeterminate color="grey-lighten-1" />
+              </v-row>
+            </template>
+          </v-img>
 
-      <v-col
-        v-else
-        v-for="rec in records"
-        :key="rec.id"
-        cols="12" sm="6" md="4" lg="3"
-      >
-        <v-card class="rounded-lg hoverable" style="cursor:pointer" @click="$router.push('/record/' + rec.id)">
-          <v-img :src="normalizeThumb(rec.thumbnail)" height="200" cover class="rounded-t-lg" />
-          <v-card-title>{{ rec.title }}</v-card-title>
+          <v-card-item class="pa-0">
+            <v-card-title class="text-body-1 font-weight-bold line-clamp-2" style="line-height: 1.2;">
+              {{ record.displayTitle }}
+            </v-card-title>
+            
+            <v-card-subtitle v-if="record.cleanTags" class="text-caption text-primary mt-1">
+              {{ record.cleanTags }}
+            </v-card-subtitle>
+          </v-card-item>
         </v-card>
+      </v-col>
+
+      <v-col v-if="records.length === 0" cols="12" class="text-center py-12">
+        <v-icon size="64" color="grey-lighten-1">mdi-database-search-outline</v-icon>
+        <p class="text-grey-darken-1 mt-4">No se han encontrado resultados.</p>
       </v-col>
     </v-row>
   </PageLayout>
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
+import { ref, watch, computed } from 'vue'
 import { useRoute } from 'vue-router'
-import PageLayout from '@/components/PageLayout.vue'
 import api from '@/services/api'
+import PageLayout from '@/components/PageLayout.vue'
 
 const route = useRoute()
+const records = ref([])
+const loading = ref(false)
 const API_BASE = 'https://arcadium.cluster24.libnamic.eu'
 
-const records = ref([])
-const total = ref(0)
-const loading = ref(false)
+const currentScope = computed(() => route.query.scope || 'records')
 
-function normalizeThumb(th) {
-  if (!th) return '/placeholder.png'
-  if (/^https?:\/\//i.test(th)) return th
-  return `${API_BASE}${th.startsWith('/') ? '' : '/'}${th}`
+function getCleanText(field) {
+  if (!field) return '';
+  if (typeof field === 'object') {
+    const firstKey = Object.keys(field)[0];
+    const content = field[firstKey] || field;
+    return content.value || content['@value'] || content[0]?.value || (typeof content === 'string' ? content : '');
+  }
+  if (typeof field === 'string' && field.startsWith('{')) return '';
+  return field;
 }
 
-function mapOperator(op) {
-  const map = {
-    contains: 'contains',
-    eq: 'eq',
-    neq: 'neq',
-    startsWith: 'startsWith',
-    endsWith: 'endsWith',
-    isEmpty: 'isEmpty',
-    notEmpty: 'notEmpty',
-    in: 'in'
+function processRecord(item) {
+  let img = item.preview || item.thumbnail || item.image || '/placeholder.png';
+  if (img !== '/placeholder.png' && !img.startsWith('http')) {
+    img = `${API_BASE}${img.startsWith('/') ? '' : '/'}${img}`;
   }
-  return map[op] || op || 'contains'
+
+  const titleField = item.metadata_fields?.['dcterms:title'] || item.title || item.name;
+  const displayTitle = getCleanText(titleField);
+  
+  let tags = item.joined_metadata || "";
+  let cleanTags = "";
+  if (Array.isArray(tags)) {
+    cleanTags = tags.map(t => getCleanText(t)).filter(t => t).join(" • ");
+  } else {
+    const text = getCleanText(tags);
+    cleanTags = text ? text.split(',').join(" • ") : "";
+  }
+
+  return { 
+    ...item, 
+    imageDisplay: img, 
+    displayTitle: displayTitle || 'Sin título',
+    cleanTags: cleanTags 
+  }
 }
-
-function buildFiltersFromQuery(q) {
-  const filters = []
-
-  // Colección concreta (?collection=6) -> como tu cURL
-  if (q.collection !== undefined && q.collection !== null && q.collection !== '') {
-    const id = Number(q.collection)
-    if (!Number.isNaN(id)) filters.push({ field: 'collections', operator: 'in', value: [id] })
-  }
-
-  // Texto libre -> fulltext (ajusta el campo si tu backend usa otro)
-  if (q.q && String(q.q).trim()) {
-    filters.push({ field: 'joined_metadata', operator: 'contains', value: String(q.q).trim() })
-  }
-
-  // Reglas avanzadas
-  if (q.rules) {
-    try {
-      const rules = JSON.parse(q.rules)
-      for (const r of rules) {
-        if (!r?.field) continue
-        const op = mapOperator(r.operator)
-        const filter = { field: r.field, operator: op }
-        if (['isEmpty', 'notEmpty'].includes(op)) filter.value = null
-        else filter.value = r.value
-        filters.push(filter)
-      }
-    } catch (e) {
-      console.warn('No se pudo parsear rules:', e)
-    }
-  }
-
-  return filters
-}
-
-watch(
-  () => ({ ...route.query }),
-  () => fetchData(),
-  { immediate: true }
-)
 
 async function fetchData() {
   loading.value = true
   try {
-    const q = route.query
-    const page = Math.max(1, Number(q.page) || 1)
-    const limit = Math.max(1, Number(q.limit) || 50)
-    const offset = (page - 1) * limit
-
-    const filters = buildFiltersFromQuery(q)
-    const hasFilters = filters.length > 0
+    // Extraer y parsear los filtros de la URL
+    let activeFilters = [];
+    if (route.query.rules) {
+      try {
+        // El router envía un string JSON
+        activeFilters = JSON.parse(route.query.rules);
+      } catch (e) {
+        console.warn("Error parseando reglas:", e);
+        activeFilters = [];
+      }
+    }
 
     const params = {
-      fields: 'id,title,joined_metadata,thumbnail',
-      limit,
-      offset
+      with_labels: 1,
+      fields: 'id,title,name,thumbnail,preview,description,joined_metadata,metadata_fields',
+      limit: 40,
+      page: route.query.page || 1,
+      // Usamos 'q'  mapeado a 'search'
+      search: route.query.q || '', 
+      combine: route.query.combine || 'AND',
+      filters: activeFilters.length ? activeFilters : undefined
     }
 
-    if (hasFilters) {
-      params.filters = JSON.stringify(filters)
-      if (q.combine) params.filters_logic = q.combine
-      if (q.sortBy && q.sortBy !== 'default') params.order_by = q.sortBy
-      if (q.sortDir) params.order_dir = q.sortDir
+    // 2. Parámetros de ordenación
+    if (route.query.sortBy) params.sort = route.query.sortBy
+    if (route.query.sortDir) params.direction = route.query.sortDir
+
+    // Petición al servicio
+    let response;
+    if (currentScope.value === 'collections') {
+      response = await api.getCollections(params)
+    } else {
+      response = await api.getRecords(params)
     }
 
-    const { data } = await api.searchRecords(params)
-    const items = Array.isArray(data)
-      ? data
-      : data.items || data.results || data.data || []
-
-    records.value = items
-    total.value = data.count ?? items.length
+    const items = response.data?.data || response.data?.items || []
+    records.value = items.map(processRecord)
   } catch (err) {
-    console.error('Error cargando registros:', err)
+    console.error("Error cargando lista:", err)
     records.value = []
-    total.value = 0
   } finally {
     loading.value = false
   }
 }
+
+watch(() => route.query, () => fetchData(), { immediate: true, deep: true })
 </script>
 
 <style scoped>
-.hoverable { transition: transform 0.2s ease, box-shadow 0.2s ease; }
-.hoverable:hover { transform: translateY(-4px); box-shadow: 0 12px 36px rgba(0,0,0,0.08); }
-
-.inicio-contenedor,
-.inicio-btn-grid,
-.inicio-btn {
-  border-bottom: none !important;
-  box-shadow: none !important;
+.record-card { 
+  cursor: pointer; 
+  background: transparent !important; 
+  transition: all 0.2s ease;
+}
+.record-card:hover { 
+  opacity: 0.8;
+  transform: translateY(-2px);
+}
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
 }
 </style>

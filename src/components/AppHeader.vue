@@ -42,12 +42,12 @@
   transition: all 0.2s ease;
 }
 
-/* hover elegante */
+/* hover  */
 .menu-link:hover {
   color: #111;
 }
 
-/* subrayado minimal animado */
+/* subrayado  */
 .menu-link::after {
   content: "";
   position: absolute;

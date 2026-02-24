@@ -1,6 +1,5 @@
 <template>
   <PageLayout>
-    <!-- Sección bonita “sitio de Granada” -->
     <div class="inicio-contenedor">
       <h2 class="inicio-title">Este es el sitio de Granada</h2>
 
@@ -21,7 +20,7 @@
       <div class="inicio-divider"></div>
     </div>
 
-    <!-- Grid de colecciones destacadas (si lo tienes) -->
+    <!-- Destacados -->
     <v-row class="mt-8" v-if="collections.length">
       <v-col
         v-for="col in collections"
@@ -33,7 +32,7 @@
           style="cursor:pointer"
           @click="$router.push('/collection/' + col.id)"
         >
-          col.thumbnailFull
+          <v-img :src="col.thumbnailFull" height="180" cover class="rounded-t-lg" />
           <v-card-title>{{ col.title }}</v-card-title>
         </v-card>
       </v-col>
@@ -74,7 +73,6 @@ function normalizeThumb(th) {
 </script>
 
 <style scoped>
-/* --------- Sección bonita “sitio de Granada” --------- */
 .inicio-contenedor {
   margin-top: 60px;
   text-align: center;
@@ -88,14 +86,12 @@ function normalizeThumb(th) {
   letter-spacing: -0.5px;
 }
 
-/* Grid centrado y equilibrado */
 .inicio-btn-grid {
   display: flex;
   justify-content: center;
   gap: 28px;
 }
 
-/* Botón elegante sin cambiar estilo */
 .inicio-btn {
   height: 56px !important;
   border-radius: 999px !important;
@@ -112,7 +108,6 @@ function normalizeThumb(th) {
   box-shadow: 0 8px 24px rgba(0,0,0,0.15) !important;
 }
 
-/* Línea separadora sutil */
 .inicio-divider {
   width: 100%;
   max-width: 480px;
@@ -121,21 +116,11 @@ function normalizeThumb(th) {
   margin: 48px auto 0 auto;
 }
 
-/* Hover cards */
 .hoverable {
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 .hoverable:hover {
   transform: translateY(-4px);
   box-shadow: 0 12px 36px rgba(0, 0, 0, 0.08);
-}
-
-/* Responsive */
-@media (max-width: 640px) {
-  .inicio-btn-grid {
-    flex-direction: column;
-    gap: 14px;
-    padding: 0 16px;
-  }
 }
 </style>

@@ -4,14 +4,14 @@
     :style="{ backgroundImage: `url(${heroImage})` }"
   >
     <div class="hero-overlay">
-      <h1>Mi Sitio Cultural</h1>
-      <p>Bienvenido al nuevo diseño minimalista.</p>
+      <h1>Sitio de Granada</h1>
+      <p>Bienvenido al nuevo sitio de Granada.</p>
     </div>
   </div>
 </template>
 
 <script setup>
-// Importa la imagen directamente
+// Importa la imagen 
 import heroImage from '@/assets/sitioGranada.jpg'
 </script>
 

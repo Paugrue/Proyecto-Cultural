@@ -1,27 +1,20 @@
-import { fileURLToPath, URL } from 'node:url'
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
-import vueDevTools from 'vite-plugin-vue-devtools'
+import path from 'path'
 
-// https://vite.dev/config/
 export default defineConfig({
-  plugins: [
-    vue(),
-    vueDevTools(),
-  ],
+  plugins: [vue()],
   resolve: {
     alias: {
-      '@': fileURLToPath(new URL('./src', import.meta.url))
+      '@': path.resolve(__dirname, './src'),
     },
   },
   server: {
     proxy: {
-      // Proxy para thumbnails
-      '/api-proxy/thumbnail': {
+      '/api-proxy': {
         target: 'https://arcadium.cluster24.libnamic.eu',
         changeOrigin: true,
-        rewrite: (path) =>
-          path.replace('/api-proxy/thumbnail', '/api/core/attachment/action_get/thumb')
+        rewrite: (path) => path.replace(/^\/api-proxy/, '')
       }
     }
   }

@@ -32,96 +32,55 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import AdvancedSearchDialog from '@/components/AdvancedSearchDialog.vue'
 
 const props = defineProps({
   fields: { type: Array, default: () => [] },
   collections: { type: Array, default: () => [] },
-  defaults: {
-    type: Object,
-    default: () => ({
-      scope: 'records',
-      query: '',
-      combine: 'AND',
-      rules: [],
-      collection: null,
-      sortBy: 'default',
-      sortDir: 'asc',
-      page: 1,
-    }),
-  },
+  defaults: { type: Object, default: () => ({ page: 1 }) },
 })
-
-const emit = defineEmits(['do-basic-search', 'do-advanced-search'])
 
 const search = ref('')
 const advancedOpen = ref(false)
+const route = useRoute()
+const router = useRouter()
+
+// Sincroniza el input con la URL 
+watch(() => route.query.q, (newVal) => {
+  search.value = newVal || ''
+}, { immediate: true })
 
 function onBasicSearch() {
-  emit('do-basic-search', search.value?.trim() || '')
+  const q = search.value?.trim() || ''
+  router.push({
+    path: '/record', // Forzamos a ir a la lista de registros si estamos en otra parte
+    query: { ...route.query, q, page: 1 }
+  })
 }
+
 function onAdvanced(payload) {
-  emit('do-advanced-search', payload)
+  const { rules, combine, collection, sortBy, sortDir, page } = payload
+  const query = {
+    ...route.query,
+    rules: JSON.stringify(rules || []),
+    combine: combine || 'AND',
+    collection: collection || undefined,
+    sortBy: sortBy || undefined,
+    sortDir: sortDir || undefined,
+    page: page || 1
+  }
+  Object.keys(query).forEach(k => query[k] === undefined && delete query[k])
+  router.push({ path: '/record', query })
 }
 </script>
 
 <style scoped>
-.search-section {
-  display: flex;
-  justify-content: center;
-  margin: 32px 0;
-  padding: 0 16px;
-}
-
-.search-box {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  width: 100%;
-  max-width: 880px; /* ⬅️ tamaño normal, cómodo */
-}
-
-/* Input tamaño NORMAL */
-.search-input :deep(.v-field) {
-  border-radius: 999px !important;
-  background: white;
-  border: 1px solid rgba(0,0,0,0.06);
-  height: 52px;               /* ⬅️ tamaño normal */
-  font-size: 16px;
-}
-
-.search-input :deep(input) {
-  height: 52px !important;
-  line-height: 52px !important;
-  font-size: 16px !important;
-}
-
-.search-input :deep(.v-field__prepend-inner .v-icon) {
-  font-size: 22px !important;
-}
-
-/* Botón principal tamaño normal */
-.search-btn {
-  border-radius: 999px !important;
-  padding: 0 24px !important;
-  height: 52px !important; /* ⬅️ mismo alto que input */
-  background: #111 !important;
-  color: white !important;
-  font-weight: 600;
-  font-size: 15px;
-  text-transform: none;
-}
-
-/* Botón "Avanzada" tamaño normal */
-.advanced-btn {
-  color: #666 !important;
-  font-weight: 600;
-  text-transform: none;
-  height: 52px !important;
-  padding: 0 12px !important;
-  font-size: 15px;
-}
-
-.advanced-btn:hover { color: #111 !important; }
+/*  estilos */
+.search-section { display: flex; justify-content: center; margin: 32px 0; padding: 0 16px; }
+.search-box { display: flex; align-items: center; gap: 12px; width: 100%; max-width: 880px; }
+.search-input :deep(.v-field) { border-radius: 999px !important; background: white; border: 1px solid rgba(0,0,0,0.06); height: 52px; }
+.search-btn { border-radius: 999px !important; padding: 0 24px !important; height: 52px !important; background: #111 !important; color: white !important; text-transform: none; }
+.advanced-btn { color: #666 !important; text-transform: none; height: 52px !important; }
 </style>

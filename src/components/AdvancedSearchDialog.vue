@@ -9,7 +9,7 @@
       <v-card-text class="pa-0">
         <div class="mb-6">
           <div class="text-subtitle-2 mb-2 text-grey-darken-2 font-weight-bold">Alcance</div>
-          <v-btn-toggle v-model="form.scope" color="primary" variant="outlined" mandatory divided class="w-100">
+          <v-btn-toggle v-model="form.scope" color="primary" variant="outlined" mandatory class="w-100">
             <v-btn value="records" class="flex-grow-1">Registros</v-btn>
             <v-btn value="collections" class="flex-grow-1">Colecciones</v-btn>
             <v-btn value="all" class="flex-grow-1">Todo</v-btn>
@@ -20,7 +20,6 @@
           v-model="form.query" 
           label="Término general" 
           variant="outlined" 
-          prepend-inner-icon="mdi-text-search"
           class="mb-6" 
           clearable 
           @keyup.enter="emitSearch"
@@ -29,27 +28,28 @@
         <v-card variant="flat" border class="pa-4 mb-6" color="grey-lighten-5">
           <div class="d-flex align-center mb-4">
             <span class="text-subtitle-1 font-weight-bold me-4">Filtros específicos</span>
-            <v-btn-toggle v-model="form.combine" divided density="compact" mandatory color="secondary">
+            <v-btn-toggle v-model="form.combine" density="compact" mandatory color="secondary">
               <v-btn value="AND">Y</v-btn>
               <v-btn value="OR">O</v-btn>
             </v-btn-toggle>
           </div>
+          
           <div class="d-flex flex-column ga-4">
-            <div v-for="(rule, idx) in form.rules" :key="rule.id" class="d-flex flex-wrap align-center ga-2 pb-2">
-              <v-select v-model="rule.field" :items="fieldOptions" label="Campo" variant="outlined" density="compact" class="flex-grow-1" hide-details />
-              <v-select v-model="rule.operator" :items="operatorOptions" label="Operador" variant="outlined" density="compact" style="max-width: 150px" hide-details />
-              <v-text-field v-if="!['isEmpty', 'notEmpty'].includes(rule.operator)" v-model="rule.value" label="Valor" variant="outlined" density="compact" class="flex-grow-1" hide-details @keyup.enter="emitSearch" />
+            <div v-for="(rule, idx) in form.rules" :key="rule.id" class="d-flex align-center ga-2">
+              <v-select v-model="rule.field" :items="fieldOptions" label="Campo" variant="outlined" density="compact" hide-details />
+              <v-select v-model="rule.operator" :items="operatorOptions" label="Op." variant="outlined" density="compact" style="max-width: 120px" hide-details />
+              <v-text-field v-if="!['isEmpty', 'notEmpty'].includes(rule.operator)" v-model="rule.value" label="Valor" variant="outlined" density="compact" hide-details @keyup.enter="emitSearch" />
               <v-btn icon="mdi-delete" variant="text" color="error" @click="removeRule(idx)" :disabled="form.rules.length <= 1" />
             </div>
-            <v-btn variant="text" color="primary" class="align-self-start" @click="addRule">+ Añadir filtro</v-btn>
+            <v-btn variant="text" color="primary" @click="addRule">+ Añadir filtro</v-btn>
           </div>
         </v-card>
       </v-card-text>
 
-      <v-card-actions class="px-0 pt-4">
+      <v-card-actions class="px-0">
         <v-btn variant="text" @click="open = false">Cancelar</v-btn>
         <v-spacer />
-        <v-btn color="primary" variant="flat" size="large" @click="emitSearch" class="px-10">Buscar ahora</v-btn>
+        <v-btn color="primary" variant="flat" @click="emitSearch">Buscar ahora</v-btn>
       </v-card-actions>
     </v-card>
   </v-dialog>
@@ -75,37 +75,33 @@ const form = reactive({
   scope: 'records',
   query: '',
   combine: 'AND',
-  rules: [],
-  sortBy: 'default',
-  sortDir: 'asc'
+  rules: []
 })
+
+const generateId = () => Math.random().toString(36).substr(2, 9)
 
 const resetForm = () => {
   form.scope = props.defaults?.scope || 'records'
   form.query = props.defaults?.query || ''
   form.combine = props.defaults?.combine || 'AND'
   if (props.defaults?.rules?.length) {
-    form.rules = JSON.parse(JSON.stringify(props.defaults.rules)).map((r, i) => ({ id: Date.now() + i, ...r }))
+    form.rules = JSON.parse(JSON.stringify(props.defaults.rules)).map(r => ({ ...r, id: generateId() }))
   } else {
-    form.rules = [{ id: Date.now(), field: null, operator: 'contains', value: '' }]
+    form.rules = [{ id: generateId(), field: null, operator: 'contains', value: '' }]
   }
 }
 
-watch(() => props.modelValue, (val) => val && resetForm(), { immediate: true })
+watch(() => props.modelValue, (val) => { if (val) resetForm() }, { immediate: true })
 
 const fieldOptions = computed(() => props.fields?.map(f => typeof f === 'string' ? { title: f, value: f } : f) || [])
 const operatorOptions = [{ title: 'Contiene', value: 'contains' }, { title: 'Igual', value: 'eq' }, { title: 'Vacío', value: 'isEmpty' }]
 
-function addRule() { form.rules.push({ id: Date.now(), field: null, operator: 'contains', value: '' }) }
+function addRule() { form.rules.push({ id: generateId(), field: null, operator: 'contains', value: '' }) }
 function removeRule(idx) { form.rules.splice(idx, 1); if (!form.rules.length) addRule(); }
 
 function emitSearch() {
-  const payload = {
-    ...form,
-    // Filtrar reglas incompletas
-    rules: form.rules.filter(r => r.field && (['isEmpty', 'notEmpty'].includes(r.operator) || r.value))
-  }
-  emit('do-advanced-search', payload)
+  const validRules = form.rules.filter(r => r.field && (['isEmpty'].includes(r.operator) || r.value))
+  emit('do-advanced-search', { ...JSON.parse(JSON.stringify(form)), rules: validRules })
   open.value = false
 }
 </script>

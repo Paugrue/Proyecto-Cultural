@@ -40,7 +40,8 @@
 
       <v-col v-if="records.length === 0" cols="12" class="text-center py-12">
         <v-icon size="64" color="grey-lighten-1">mdi-database-search-outline</v-icon>
-        <p class="text-grey-darken-1 mt-4">No se han encontrado resultados.</p>
+        <p class="text-grey-darken-1 mt-4">No se han encontrado resultados para tu búsqueda.</p>
+        <v-btn variant="text" color="primary" @click="$router.push(route.path)">Limpiar filtros</v-btn>
       </v-col>
     </v-row>
   </PageLayout>
@@ -59,6 +60,7 @@ const API_BASE = 'https://arcadium.cluster24.libnamic.eu'
 
 const currentScope = computed(() => route.query.scope || 'records')
 
+// Limpieza de textos complejos que vienen de la API
 function getCleanText(field) {
   if (!field) return '';
   if (typeof field === 'object') {
@@ -70,6 +72,7 @@ function getCleanText(field) {
   return field;
 }
 
+// Procesamiento de cada registro para la UI
 function processRecord(item) {
   let img = item.preview || item.thumbnail || item.image || '/placeholder.png';
   if (img !== '/placeholder.png' && !img.startsWith('http')) {
@@ -96,37 +99,38 @@ function processRecord(item) {
   }
 }
 
+// Lógica de carga de datos sincronizada con la URL
 async function fetchData() {
   loading.value = true
   try {
-    // Extraer y parsear los filtros de la URL
     let activeFilters = [];
     if (route.query.rules) {
       try {
-        // El router envía un string JSON
         activeFilters = JSON.parse(route.query.rules);
       } catch (e) {
-        console.warn("Error parseando reglas:", e);
-        activeFilters = [];
+        console.warn("Filtros mal formados en la URL", e);
       }
     }
 
+    // Construcción de parámetros para la API
     const params = {
       with_labels: 1,
       fields: 'id,title,name,thumbnail,preview,description,joined_metadata,metadata_fields',
       limit: 40,
       page: route.query.page || 1,
-      // Usamos 'q'  mapeado a 'search'
       search: route.query.q || '', 
       combine: route.query.combine || 'AND',
-      filters: activeFilters.length ? activeFilters : undefined
     }
 
-    // 2. Parámetros de ordenación
+    // Solo añadimos filtros si realmente hay reglas válidas
+    if (activeFilters.length > 0) {
+      params.filters = activeFilters;
+    }
+
     if (route.query.sortBy) params.sort = route.query.sortBy
     if (route.query.sortDir) params.direction = route.query.sortDir
 
-    // Petición al servicio
+    // Decisión de endpoint
     let response;
     if (currentScope.value === 'collections') {
       response = await api.getCollections(params)
@@ -134,8 +138,10 @@ async function fetchData() {
       response = await api.getRecords(params)
     }
 
-    const items = response.data?.data || response.data?.items || []
-    records.value = items.map(processRecord)
+    // Extraer datos según estructura de respuesta
+    const items = response.data?.data || response.data?.items || response.data || []
+    records.value = Array.isArray(items) ? items.map(processRecord) : []
+    
   } catch (err) {
     console.error("Error cargando lista:", err)
     records.value = []
@@ -144,18 +150,21 @@ async function fetchData() {
   }
 }
 
-watch(() => route.query, () => fetchData(), { immediate: true, deep: true })
+// Watch profundo para reaccionar a cualquier cambio en la URL
+watch(() => route.query, () => {
+  fetchData()
+}, { immediate: true, deep: true })
 </script>
 
 <style scoped>
 .record-card { 
   cursor: pointer; 
   background: transparent !important; 
-  transition: all 0.2s ease;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .record-card:hover { 
-  opacity: 0.8;
-  transform: translateY(-2px);
+  opacity: 0.9;
+  transform: translateY(-4px);
 }
 .line-clamp-2 {
   display: -webkit-box;

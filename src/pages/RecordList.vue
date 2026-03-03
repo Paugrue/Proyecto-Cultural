@@ -8,17 +8,8 @@
 
     <v-row v-else>
       <v-col v-for="record in records" :key="record.id" cols="12" sm="6" md="4" lg="3">
-        <v-card 
-          flat 
-          class="record-card" 
-          @click="$router.push(`/${currentScope === 'collections' ? 'collection' : 'record'}/${record.id}`)"
-        >
-          <v-img 
-            :src="record.imageDisplay" 
-            height="250" 
-            cover 
-            class="rounded-lg bg-grey-lighten-2 mb-3"
-          >
+        <v-card flat class="record-card" @click="$router.push(`/${currentScope === 'collections' ? 'collection' : 'record'}/${record.id}`)">
+          <v-img :src="record.imageDisplay" height="250" cover class="rounded-lg bg-grey-lighten-2 mb-3">
             <template v-slot:placeholder>
               <v-row class="fill-height ma-0" align="center" justify="center">
                 <v-progress-circular indeterminate color="grey-lighten-1" />

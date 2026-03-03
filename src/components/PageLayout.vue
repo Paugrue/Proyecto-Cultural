@@ -6,7 +6,7 @@
       <div class="page-search-inner">
         <SearchBar
           :fields="fieldsList"
-          :collections="collections"
+          :collections="collectionsList"
           :defaults="advancedDefaults"
           @do-basic-search="onBasicSearch"
           @do-advanced-search="onAdvancedSearch"
@@ -26,26 +26,39 @@ import { useRouter, useRoute } from 'vue-router'
 import Hero from '@/components/Hero.vue'
 import SearchBar from '@/components/SearchBar.vue'
 
+/* PROPS */
 const props = defineProps({
   fields: { type: Array, default: () => [] },
-  collections: { type: Array, default: () => [] },
+  collections: { type: Array, default: () => [] }, // Debe contener objetos {id, title}
 })
 
 const router = useRouter()
 const route = useRoute()
 
+/* CAMPOS DISPONIBLES PARA BÚSQUEDA */
 const fieldsList = computed(() =>
-  props.fields.length ? props.fields : [
-    { title: 'Título', value: 'title' },
-    { title: 'Autor', value: 'author' },
-    { title: 'Fecha', value: 'date' },
-    { title: 'Descripción', value: 'description' },
-  ]
+  props.fields.length
+    ? props.fields
+    : [
+        { title: 'Título', value: 'title' },
+        { title: 'Autor', value: 'author' },
+        { title: 'Fecha', value: 'date' },
+        { title: 'Descripción', value: 'description' },
+        { title: 'Colección', value: 'collections' } // necesario para AdvancedSearchDialog
+      ]
 )
 
-// Sincroniza la URL con el estado de la búsqueda
+/* COLECCIONES DISPONIBLES */
+const collectionsList = computed(() =>
+  Array.isArray(props.collections)
+    ? props.collections.map(c => ({ id: c.id, title: c.title || c.name || 'Sin título' }))
+    : []
+)
+
+/* SINCRONIZAR URL → ESTADO DEL BUSCADOR */
 const advancedDefaults = computed(() => {
   let rules = []
+
   try {
     if (route.query.rules) {
       rules = JSON.parse(route.query.rules)
@@ -59,39 +72,69 @@ const advancedDefaults = computed(() => {
     query: route.query.q || '',
     combine: route.query.combine || 'AND',
     rules: rules,
-    collection: route.query.collection || null,
     sortBy: route.query.sortBy || 'default',
     sortDir: route.query.sortDir || 'asc',
   }
 })
 
-const collections = computed(() => props.collections)
-
+/* BÚSQUEDA BÁSICA */
 function onBasicSearch(q) {
   const queryTerm = q?.trim() || undefined
-  router.push({ path: '/record', query: { q: queryTerm, page: 1 } })
+
+  router.push({
+    path: '/record',
+    query: {
+      q: queryTerm,
+      page: 1
+    }
+  })
 }
 
+/* BÚSQUEDA AVANZADA */
 function onAdvancedSearch(payload) {
-  const goTo = payload.scope === 'collections' ? '/collection' : '/record'
+  const goTo =
+    payload.scope === 'collections'
+      ? '/collection'
+      : '/record'
+
   const query = {
     q: payload.query?.trim() || undefined,
     scope: payload.scope,
     combine: payload.combine,
-    rules: payload.rules?.length ? JSON.stringify(payload.rules) : undefined,
-    collection: payload.collection || undefined,
-    sortBy: payload.sortBy,
-    sortDir: payload.sortDir,
+    rules: payload.rules?.length
+      ? JSON.stringify(payload.rules)
+      : undefined,
+    sortBy: payload.sortBy || undefined,
+    sortDir: payload.sortDir || undefined,
     page: 1,
   }
-  // Limpiar nulos para URL limpia
-  Object.keys(query).forEach(k => query[k] === undefined && delete query[k])
-  router.push({ path: goTo, query })
+
+  // Limpieza automática de undefined
+  Object.keys(query).forEach(key => {
+    if (query[key] === undefined) delete query[key]
+  })
+
+  router.push({
+    path: goTo,
+    query
+  })
 }
 </script>
 
 <style scoped>
-.page-container { max-width: 1100px; margin: 0 auto; padding: 24px; }
-.page-search-wrap { width: 100%; margin: 8px 0; }
-.page-search-inner { max-width: 1400px; margin: 0 auto; }
+.page-container {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.page-search-wrap {
+  width: 100%;
+  margin: 8px 0;
+}
+
+.page-search-inner {
+  max-width: 1400px;
+  margin: 0 auto;
+}
 </style>

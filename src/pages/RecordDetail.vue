@@ -4,38 +4,64 @@
       Volver al listado
     </v-btn>
 
+    <!-- LOADING -->
     <v-row v-if="loading">
       <v-col cols="12" class="text-center py-12">
         <v-progress-circular indeterminate color="primary" size="64" />
       </v-col>
     </v-row>
 
+    <!-- RECORD DETAIL -->
     <v-row v-else>
+      <!-- IMAGEN -->
       <v-col cols="12" md="6">
         <v-card flat class="rounded-xl overflow-hidden border">
           <v-img :src="record.imageDisplay" height="550" cover class="bg-grey-lighten-3" />
         </v-card>
       </v-col>
 
+      <!-- DATOS -->
       <v-col cols="12" md="6">
         <div class="pa-md-6">
+
+          <!-- TÍTULO -->
           <h1 class="text-h3 font-weight-bold mb-2">{{ record.displayTitle }}</h1>
-          
+
+          <!-- COLECCIONES -->
           <div v-if="record.cleanCollections" class="text-overline text-primary mb-6">
             {{ record.cleanCollections }}
           </div>
 
           <v-divider class="mb-6"></v-divider>
 
-          <div class="mb-6">
-            <p v-if="record.displayAuthor" class="text-subtitle-1 mb-1">
-              <span class="text-grey-darken-1 font-weight-medium">Autor:</span> {{ record.displayAuthor }}
-            </p>
-            <p v-if="record.displayYear" class="text-subtitle-1">
-              <span class="text-grey-darken-1 font-weight-medium">Año:</span> {{ record.displayYear }}
-            </p>
+          <!-- ⭐⭐ METADATOS (IGUAL QUE EN TU IMAGEN) ⭐⭐ -->
+          <div class="metadata-block mb-10">
+            <h2 class="metadata-header">Metadatos</h2>
+
+            <div class="metadata-row" v-if="record.displayYear">
+              <div class="metadata-label">Fecha</div>
+              <div class="metadata-value">{{ record.displayYear }}</div>
+            </div>
+
+            <div class="metadata-row">
+              <div class="metadata-label">Título</div>
+              <div class="metadata-value">{{ record.displayTitle }}</div>
+            </div>
+
+            <div class="metadata-row" v-if="record.displayAuthor">
+              <div class="metadata-label">Creador</div>
+              <div class="metadata-value">{{ record.displayAuthor }}</div>
+            </div>
+
+            <div class="metadata-row" v-if="record.displayDescription">
+              <div class="metadata-label">Descripción</div>
+              <div class="metadata-value">
+                {{ record.displayDescription }}
+              </div>
+            </div>
           </div>
 
+          <!-- DESCRIPCIÓN GENERAL -->
           <div class="text-body-1 text-grey-darken-2" style="line-height: 1.8;">
             {{ record.displayDescription }}
           </div>
@@ -44,9 +70,11 @@
     </v-row>
 
     <v-divider class="my-12"></v-divider>
-    
+
+    <!-- RELACIONADOS -->
     <div v-if="relatedRecords.length">
       <h2 class="text-h5 font-weight-bold mb-6">También te puede interesar</h2>
+
       <v-row>
         <v-col v-for="r in relatedRecords" :key="r.id" cols="12" sm="6" md="3">
           <v-card flat class="related-card" @click="navigateToRecord(r.id)">
@@ -75,19 +103,16 @@ const record = ref({})
 const relatedRecords = ref([])
 const loading = ref(true)
 
-// FUNCIÓN CLAVE: Extrae el texto real 
+// Función que limpia textos complejos
 function getCleanText(item, fieldName) {
-  // 1. Buscamos en metadata_fields 
   const meta = item.metadata_fields || {};
   const field = meta[fieldName] || item[fieldName];
 
-  if (!field) return '';
+  if (!field) return "";
 
-  // Si es un objeto tipo { "label": "...", "value": "..." }
-  if (typeof field === 'object') {
-    // Si es un array de objetos, pillamos el primero
+  if (typeof field === "object") {
     const target = Array.isArray(field) ? field[0] : field;
-    return target.value || target['@value'] || '';
+    return target.value || target["@value"] || "";
   }
 
   return field;
@@ -99,14 +124,15 @@ function normalizeRecord(r) {
     img = `${API_BASE}${img.startsWith("/") ? "" : "/"}${img}`;
   }
 
-  // Extraer datos usando los nombres técnicos de la API 
-  const title = getCleanText(r, 'dcterms:title') || r.title || 'Sin título';
-  const author = getCleanText(r, 'dcterms:creator');
-  const year = getCleanText(r, 'dcterms:date');
-  const desc = getCleanText(r, 'dcterms:description') || r.description || 'Sin descripción detallada.';
+  const title = getCleanText(r, "dcterms:title") || r.title || "Sin título";
+  const author = getCleanText(r, "dcterms:creator");
+  const year = getCleanText(r, "dcterms:date");
+  const desc = getCleanText(r, "dcterms:description") || r.description || "Sin descripción detallada.";
 
   let rawCols = r.collections_titles || r.collections || "";
-  let cleanCols = Array.isArray(rawCols) ? rawCols.join(" • ") : String(rawCols).split(',').join(" • ");
+  let cleanCols = Array.isArray(rawCols)
+    ? rawCols.join(" • ")
+    : String(rawCols).split(",").join(" • ");
 
   return {
     ...r,
@@ -116,7 +142,7 @@ function normalizeRecord(r) {
     displayYear: year,
     displayDescription: desc,
     cleanCollections: cleanCols
-  }
+  };
 }
 
 const loadData = async () => {
@@ -125,7 +151,7 @@ const loadData = async () => {
     const { data: recData } = await api.getRecord(route.params.id)
     record.value = normalizeRecord(recData)
 
-    if (recData.collections && recData.collections.length) {
+    if (recData.collections?.length) {
       const { data: relatedData } = await api.getRecords({
         limit: 4,
         filters: JSON.stringify([
@@ -143,7 +169,58 @@ const loadData = async () => {
   }
 }
 
-const navigateToRecord = (id) => { router.push('/record/' + id) }
+const navigateToRecord = (id) => router.push('/record/' + id)
+
 onMounted(loadData)
 watch(() => route.params.id, loadData)
 </script>
+
+<style scoped>
+/* ---------------------------
+   ESTILOS METADATOS (TU DISEÑO)
+---------------------------- */
+.metadata-block {
+  margin-top: 32px;
+}
+
+.metadata-header {
+  font-size: 20px;
+  font-weight: bold;
+  margin-bottom: 22px;
+}
+
+.metadata-row {
+  display: grid;
+  grid-template-columns: 180px 1fr;
+  padding: 14px 0;
+  border-top: 1px solid #e5e5e5;
+}
+
+.metadata-row:last-child {
+  border-bottom: 1px solid #e5e5e5;
+}
+
+.metadata-label {
+  font-size: 12px;
+  font-weight: bold;
+  color: #999;
+  text-transform: uppercase;
+}
+
+.metadata-value {
+  font-size: 14px;
+  color: #222;
+  line-height: 1.6;
+}
+
+/* Relacionados */
+.related-card {
+  cursor: pointer;
+  transition: .2s ease;
+}
+.related-card:hover {
+  transform: translateY(-4px);
+  opacity: .95;
+}
+</style>
+``

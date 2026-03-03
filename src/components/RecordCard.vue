@@ -1,20 +1,10 @@
 <template>
-  <v-card
-    class="record-card"
-    @click="$router.push('/record/' + normalized.id)"
-  >
-    <v-img
-      :src="normalized.thumbnail"
-      height="200"
-      cover
-      class="record-image"
-    />
-
+  <v-card class="record-card" @click="$router.push('/record/' + normalized.id)" >
+    <v-img :src="normalized.thumbnail" height="200" cover class="record-image" />
     <v-card-text class="record-content">
       <div class="record-title">
         {{ normalized.title }}
       </div>
-
       <div v-if="normalized.collections" class="record-meta">
         {{ normalized.collections }}
       </div>
@@ -26,19 +16,14 @@
 const API_BASE = 'https://arcadium.cluster24.libnamic.eu'
 
 export default {
-  props: {
-    record: Object
-  },
+  props: { record: Object },
 
   computed: {
     normalized() {
       const r = this.record || {}
 
       // Título
-      const title =
-        r.title ||
-        r.metadata_fields?.["dcterms:title"]?.[0]?.["@value"] ||
-        "Sin título"
+      const title = r.title || r.metadata_fields?.["dcterms:title"]?.[0]?.["@value"] || "Sin título"
 
       // Thumbnail
       let thumbnail = r.thumbnail
@@ -80,6 +65,7 @@ export default {
   box-shadow: 0 4px 14px rgba(0,0,0,0.04);
   cursor: pointer;
   transition: all 0.25s ease;
+  width: 100%; /* ocupa todo el ancho disponible */
 }
 
 .record-card:hover {
@@ -97,7 +83,7 @@ export default {
 }
 
 .record-content {
-  padding: 24px !important;
+  padding: 16px !important; /* menos padding en móvil */
 }
 
 .record-title {
@@ -112,5 +98,24 @@ export default {
   font-size: 14px;
   color: #8e8e93;
   letter-spacing: 0.2px;
+}
+
+/* Ajustes responsive */
+@media (max-width: 768px) {
+  .record-card {
+    border-radius: 12px;
+  }
+  .record-content {
+    padding: 12px !important;
+  }
+  .record-title {
+    font-size: 15px;
+  }
+  .record-meta {
+    font-size: 13px;
+  }
+  .record-image {
+    height: 160px !important;
+  }
 }
 </style>
